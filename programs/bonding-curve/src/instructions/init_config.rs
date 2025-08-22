@@ -4,7 +4,7 @@ use crate::state::Config;
 use anchor_lang::prelude::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct Args {
+pub struct InitConfigArgs {
     pub fee_recipient: Pubkey,
     pub buy_fee_bps: u16,
     pub sell_fee_bps: u16,
@@ -28,7 +28,7 @@ pub struct InitConfig<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<InitConfig>, args: Args) -> Result<()> {
+pub fn handler(ctx: Context<InitConfig>, args: InitConfigArgs) -> Result<()> {
     require!(args.buy_fee_bps <= BPS_DENOMINATOR, CurveError::BadFee);
     require!(args.sell_fee_bps <= BPS_DENOMINATOR, CurveError::BadFee);
 
