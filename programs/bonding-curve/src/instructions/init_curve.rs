@@ -2,7 +2,7 @@ use crate::constants::*;
 use crate::errors::CurveError;
 use crate::state::{Config, Curve, CurveBumps};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, spl_token::instruction::AuthorityType, Mint, SetAuthority, Token};
+use anchor_spl::token::{self, spl_token::instruction::AuthorityType, Mint, Token};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct InitCurveArgs {
@@ -35,6 +35,7 @@ pub struct InitCurve<'info> {
         )]
     pub curve: Account<'info, Curve>,
 
+    /// CHECK: This is a PDA that will be initialized
     #[account(
         init,
         payer = admin,
