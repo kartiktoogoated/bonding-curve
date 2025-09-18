@@ -25,7 +25,7 @@ pub fn cpmm_quote_buy_dx(
     y0_scaled: u128,
     dx_gross_lamports: u64,
     fee_bps: u16,
-) -> Result<(u64, u64, u128, u128)> {
+) -> Result<(u64, u64, u64, u128)> {
     require!(fee_bps <= BPS_DENOMINATOR, CurveError::BadFee);
     require!(y0_scaled > 0, CurveError::DivByZero);
 
@@ -56,7 +56,7 @@ pub fn cpmm_quote_buy_dx(
         .ok_or(CurveError::MathOverflow)?;
     let dy_tokens = (dy_scaled / SCALE) as u64;
 
-    Ok((dy_tokens, fee_lamports, dx_net_scaled, y1_scaled))
+    Ok((dy_tokens, fee_lamports, dx_net_lamports, y1_scaled))
 }
 
 /// Quote SOL_out (net to user) for selling tokens_in.

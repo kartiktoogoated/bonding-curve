@@ -7,9 +7,10 @@ pub mod instructions;
 pub mod math;
 pub mod state;
 
-pub use instructions::*;
+pub use instructions::buy::*;
 pub use instructions::init_config::*;
 pub use instructions::init_curve::*;
+pub use instructions::*;
 
 declare_id!("D1F2ffgFrSkDW8TdnWv8dsvCtKHRwQpimgpcYeFPVKF4");
 
@@ -17,17 +18,15 @@ declare_id!("D1F2ffgFrSkDW8TdnWv8dsvCtKHRwQpimgpcYeFPVKF4");
 pub mod bonding_curve {
     use super::*;
 
-    pub fn init_config(
-        ctx: Context<InitConfig>,
-        args: InitConfigArgs,
-    ) -> Result<()> {
+    pub fn init_config(ctx: Context<InitConfig>, args: InitConfigArgs) -> Result<()> {
         instructions::init_config::handler(ctx, args)
     }
 
-    pub fn init_curve(
-        ctx: Context<InitCurve>,
-        args: InitCurveArgs,
-    ) -> Result<()> {
+    pub fn init_curve(ctx: Context<InitCurve>, args: InitCurveArgs) -> Result<()> {
         instructions::init_curve::handler(ctx, args)
+    }
+
+    pub fn buy(ctx: Context<Buy>, args: BuyArgs) -> Result<()> {
+        instructions::buy::handler(ctx, args)
     }
 }
