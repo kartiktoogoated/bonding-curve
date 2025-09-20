@@ -21,7 +21,10 @@ describe("bonding-curve", () => {
 
   // Convenience: confirm airdrop
   const airdrop = async (kp: Keypair, lamports: number) => {
-    const sig = await provider.connection.requestAirdrop(kp.publicKey, lamports);
+    const sig = await provider.connection.requestAirdrop(
+      kp.publicKey,
+      lamports
+    );
     await provider.connection.confirmTransaction(sig, "confirmed");
   };
 
@@ -38,8 +41,8 @@ describe("bonding-curve", () => {
       provider.connection,
       admin,
       admin.publicKey, // mint authority
-      null,            // freeze authority
-      6                // decimals
+      null, // freeze authority
+      6 // decimals
     );
   });
 
@@ -61,7 +64,7 @@ describe("bonding-curve", () => {
         expect(String(e.message)).to.include("BadFee");
       }
     });
-  
+
     it("initializes config", async () => {
       const tx = await program.methods
         .initConfig({
@@ -73,28 +76,29 @@ describe("bonding-curve", () => {
         .accounts({ admin: admin.publicKey })
         .signers([admin])
         .rpc();
-  
+
       console.log("initConfig tx:", tx);
-  
+
       const [configPda] = PublicKey.findProgramAddressSync(
         [Buffer.from("config")],
         program.programId
       );
       const cfg = await program.account.config.fetch(configPda);
-  
+
       expect(cfg.admin.toString()).to.eq(admin.publicKey.toString());
-      expect(cfg.feeRecipient.toString()).to.eq(feeRecipient.publicKey.toString());
+      expect(cfg.feeRecipient.toString()).to.eq(
+        feeRecipient.publicKey.toString()
+      );
       expect(cfg.buyFeeBps).to.eq(250);
       expect(cfg.sellFeeBps).to.eq(300);
       expect(cfg.allowSellPreGrad).to.eq(true);
     });
   });
-  
 
   describe("init_curve", () => {
     it("initializes curve + transfers mint authority when requested", async () => {
       const X_V0 = new BN(anchor.web3.LAMPORTS_PER_SOL); // 1 SOL
-      const Y_V0 = new BN(1_000_000);                    // 1e6 tokens (with 6 d.p.)
+      const Y_V0 = new BN(1_000_000); // 1e6 tokens (with 6 d.p.)
       const SUPPLY_CAP = new BN(10_000_000);
 
       const tx = await program.methods
@@ -146,7 +150,9 @@ describe("bonding-curve", () => {
       expect(x * y).to.equal(k);
 
       // Mint authority actually moved to PDA (parsed check)
-      const mintInfo = await provider.connection.getParsedAccountInfo(tokenMint);
+      const mintInfo = await provider.connection.getParsedAccountInfo(
+        tokenMint
+      );
       const parsed = (mintInfo.value?.data as any)?.parsed?.info;
       if (parsed) {
         expect(parsed.mintAuthority).to.eq(mintAuthPda.toString());
@@ -210,6 +216,73 @@ describe("bonding-curve", () => {
       } catch (e: any) {
         expect(String(e.message)).to.include("BadAccount");
       }
+    });
+  });
+
+  describe("buy", () => {
+    it("mints tokens to buyer and transfers SOL + fees", async () => {
+      // fresh buyer
+      const buyer = Keypair.generate();
+      await airdrop(buyer, 5 * anchor.web3.LAMPORTS_PER_SOL);
+
+      // PDAs
+      const [configPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("config")],
+        program.programId
+      );
+      const [curvePda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("curve"), tokenMint.toBuffer()],
+        program.programId
+      );
+      const [vaultPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault"), tokenMint.toBuffer()],
+        program.programId
+      );
+
+      // Buyer ATA
+      const buyerAta = await anchor.utils.token.associatedAddress({
+        mint: tokenMint,
+        owner: buyer.publicKey,
+      });
+
+      // Run buy
+      const tx = await program.methods
+        .buy({
+          maxPayLamports: new BN(anchor.web3.LAMPORTS_PER_SOL),
+          minTokensOut: new BN(1),
+        })
+        .accounts({
+          buyer: buyer.publicKey,
+          config: configPda,
+          curve: curvePda,
+          tokenMint,
+          buyerTokenAccount: buyerAta,
+          solVault: vaultPda,
+          feeRecipient: feeRecipient.publicKey,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([buyer])
+        .rpc();
+
+      console.log("buy tx:", tx);
+
+      // Fetch balances after
+      const buyerTokenAcc =
+        await program.provider.connection.getTokenAccountBalance(buyerAta);
+      const buyerBal = buyerTokenAcc.value.uiAmount ?? 0;
+
+      const vaultBalance = await program.provider.connection.getBalance(
+        vaultPda
+      );
+      const feeBalance = await program.provider.connection.getBalance(
+        feeRecipient.publicKey
+      );
+
+      expect(buyerBal).to.be.greaterThan(0); // tokens minted
+      expect(vaultBalance).to.be.greaterThan(0); // SOL transferred to vault
+      expect(feeBalance).to.be.greaterThan(0); // fee recipient got some SOL
     });
   });
 });

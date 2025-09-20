@@ -54,6 +54,9 @@ pub struct Buy<'info> {
     )]
     pub sol_vault: SystemAccount<'info>,
 
+    /// CHECK:
+    /// This is safe because we enforce `fee_recipient.key() == config.fee_recipient`
+    /// via a constraint, so the account is guaranteed to be the expected address.
     #[account(
         mut,
         constraint = fee_recipient.key() == config.fee_recipient @ CurveError::BadAccount
@@ -143,7 +146,9 @@ pub fn handler(ctx: Context<Buy>, args: BuyArgs) -> Result<()> {
     emit!(BuyExecuted {
         mint: ctx.accounts.token_mint.key(),
         buyer: buyer.key(),
-        dx_lamports: dx_net_lamports as u64 + fee_lamports,
+        dx_lamports: (dx_net_lamports as u64)
+            .checked_add(fee_lamports)
+            .ok_or(CurveError::MathOverflow)?,
         fee_lamports,
         dy_tokens,
         x_v_after: mul_div(curve.k_scaled, 1, y_after_scaled)?,
